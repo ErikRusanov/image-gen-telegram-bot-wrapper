@@ -16,8 +16,8 @@ async def handle_message(message: Message, bot: Bot) -> None:
     thinking_msg = await replies.send_thinking(message)
     try:
         photos = await media.download_photos(message, bot)
-        img_bytes = await generation.generate_image(message.text or "", photos)
-        await replies.send_image(message, img_bytes)
+        img_bytes, usage_text = await generation.generate_image(message.text or "", photos)
+        await replies.send_image(message, img_bytes, usage_text)
     except Exception:
         logger.exception("Failed to generate image")
         await replies.send_error(message)

@@ -38,11 +38,25 @@ def extract_image(response: ChatCompletion) -> bytes:
     raise ValueError(f"No image found in model response. images={images!r} content={message.content!r}")
 
 
-async def generate_image(prompt: str, images: list[bytes]) -> bytes:
+def format_usage(response: ChatCompletion) -> str | None:
+    usage = response.usage
+    if usage is None:
+        return None
+    parts = [f"🔢 {usage.total_tokens} tokens ({usage.prompt_tokens} in / {usage.completion_tokens} out)"]
+    # OpenRouter may include cost in usage.model_extra
+    extra = usage.model_extra or {}
+    cost = extra.get("cost")
+    if cost is not None:
+        parts.append(f"💰 ${cost:.4f}")
+    return " · ".join(parts)
+
+
+async def generate_image(prompt: str, images: list[bytes]) -> tuple[bytes, str | None]:
     logger.info("Generating image | prompt=%r images=%d", prompt[:80], len(images))
     client = create_client()
     content = build_content(prompt, images)
     response = await call_model(client, content)
     img = extract_image(response)
-    logger.info("Image generated | size=%d bytes", len(img))
-    return img
+    usage_text = format_usage(response)
+    logger.info("Image generated | size=%d bytes usage=%s", len(img), usage_text)
+    return img, usage_text
