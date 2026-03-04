@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "image-gen-telegram-bot-wrapper"
+version = "0.1.0"
+description = "Telegram bot that generates images via OpenRouter"
+authors = []
+packages = [{ include = "bot" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+aiogram = "^3.18"
+openai = "^1.68"
+pydantic-settings = "^2.8"
+aiohttp = "^3.11"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
