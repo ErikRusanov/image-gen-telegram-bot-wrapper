@@ -10,7 +10,7 @@ python = "^3.12"
 aiogram = "^3.18"
 openai = "^1.68"
 pydantic-settings = "^2.8"
-aiohttp = "^3.11"
+uvicorn = "^0.34"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9"

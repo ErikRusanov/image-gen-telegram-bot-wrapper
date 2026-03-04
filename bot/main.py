@@ -1,39 +1,49 @@
-from aiogram import Bot, Dispatcher
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-from aiohttp import web
+import uvicorn
+from aiogram import Bot
+from aiogram.types import Update
 
 from bot.config import settings
 from bot.dispatcher import create_dispatcher
 
-
-async def on_startup(bot: Bot) -> None:
-    await bot.set_webhook(
-        url=settings.WEBHOOK_URL + settings.WEBHOOK_PATH,
-        drop_pending_updates=True,
-    )
+bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+dp = create_dispatcher()
 
 
-async def on_shutdown(bot: Bot) -> None:
-    await bot.delete_webhook()
+async def app(scope, receive, send) -> None:
+    if scope["type"] == "lifespan":
+        while True:
+            event = await receive()
+            if event["type"] == "lifespan.startup":
+                await bot.set_webhook(
+                    url=settings.WEBHOOK_URL + settings.WEBHOOK_PATH,
+                    drop_pending_updates=True,
+                )
+                await send({"type": "lifespan.startup.complete"})
+            elif event["type"] == "lifespan.shutdown":
+                await bot.delete_webhook()
+                await bot.session.close()
+                await send({"type": "lifespan.shutdown.complete"})
+                return
 
-
-def create_app(dp: Dispatcher, bot: Bot) -> web.Application:
-    app = web.Application()
-
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
-
-    SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=settings.WEBHOOK_PATH)
-    setup_application(app, dp, bot=bot)
-
-    return app
+    elif scope["type"] == "http":
+        if scope["path"] == settings.WEBHOOK_PATH and scope["method"] == "POST":
+            body = b""
+            while True:
+                event = await receive()
+                body += event.get("body", b"")
+                if not event.get("more_body"):
+                    break
+            update = Update.model_validate_json(body)
+            await dp.feed_update(bot, update)
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+        else:
+            await send({"type": "http.response.start", "status": 404, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
 
 
 def main() -> None:
-    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-    dp = create_dispatcher()
-    app = create_app(dp, bot)
-    web.run_app(app, host=settings.HOST, port=settings.PORT)
+    uvicorn.run(app, host=settings.HOST, port=settings.PORT)
 
 
 if __name__ == "__main__":
