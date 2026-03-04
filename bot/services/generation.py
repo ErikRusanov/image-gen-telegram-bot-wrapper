@@ -1,8 +1,11 @@
 import base64
+import logging
 
 from openai.types.chat import ChatCompletion
 
 from bot.services.openrouter import call_model, create_client
+
+logger = logging.getLogger(__name__)
 
 MAX_IMAGES = 3
 
@@ -25,8 +28,10 @@ def build_content(prompt: str, images: list[bytes]) -> list[dict]:
 
 def extract_image(response: ChatCompletion) -> bytes:
     content = response.choices[0].message.content
+    if content is None:
+        raise ValueError("Model returned no content")
     if isinstance(content, str):
-        raise ValueError("Expected structured content with image_url parts, got plain string")
+        raise ValueError(f"Expected structured content with image_url parts, got plain string: {content[:200]!r}")
     for part in content:
         if isinstance(part, dict):
             if part.get("type") == "image_url":
@@ -45,7 +50,10 @@ def extract_image(response: ChatCompletion) -> bytes:
 
 
 async def generate_image(prompt: str, images: list[bytes]) -> bytes:
+    logger.info("Generating image | prompt=%r images=%d", prompt[:80], len(images))
     client = create_client()
     content = build_content(prompt, images)
     response = await call_model(client, content)
-    return extract_image(response)
+    img = extract_image(response)
+    logger.info("Image generated | size=%d bytes", len(img))
+    return img

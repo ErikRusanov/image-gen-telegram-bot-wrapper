@@ -1,9 +1,28 @@
+import logging
+import logging.config
+
 import uvicorn
 from aiogram import Bot
 from aiogram.types import Update
 
 from bot.config import settings
 from bot.dispatcher import create_dispatcher
+
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
+        },
+        "handlers": {
+            "console": {"class": "logging.StreamHandler", "formatter": "default"},
+        },
+        "root": {"level": "INFO", "handlers": ["console"]},
+    }
+)
+
+logger = logging.getLogger(__name__)
 
 bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
 dp = create_dispatcher()
@@ -14,14 +33,14 @@ async def app(scope, receive, send) -> None:
         while True:
             event = await receive()
             if event["type"] == "lifespan.startup":
-                await bot.set_webhook(
-                    url=settings.WEBHOOK_URL + settings.WEBHOOK_PATH,
-                    drop_pending_updates=True,
-                )
+                webhook = settings.WEBHOOK_URL + settings.WEBHOOK_PATH
+                await bot.set_webhook(url=webhook, drop_pending_updates=True)
+                logger.info("Webhook set to %s", webhook)
                 await send({"type": "lifespan.startup.complete"})
             elif event["type"] == "lifespan.shutdown":
                 await bot.delete_webhook()
                 await bot.session.close()
+                logger.info("Webhook deleted, bot shut down")
                 await send({"type": "lifespan.shutdown.complete"})
                 return
 
