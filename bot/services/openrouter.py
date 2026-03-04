@@ -23,6 +23,7 @@ async def call_model(client: AsyncOpenAI, content: list) -> ChatCompletion:
     response = await client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "user", "content": content}],
+        extra_body={"modalities": ["image", "text"]},
     )
     logger.debug("Model response received | finish_reason=%s", response.choices[0].finish_reason)
     return response

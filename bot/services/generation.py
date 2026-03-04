@@ -27,26 +27,15 @@ def build_content(prompt: str, images: list[bytes]) -> list[dict]:
 
 
 def extract_image(response: ChatCompletion) -> bytes:
-    content = response.choices[0].message.content
-    if content is None:
-        raise ValueError("Model returned no content")
-    if isinstance(content, str):
-        raise ValueError(f"Expected structured content with image_url parts, got plain string: {content[:200]!r}")
-    for part in content:
-        if isinstance(part, dict):
-            if part.get("type") == "image_url":
-                url = part["image_url"]["url"]
-                if url.startswith("data:"):
-                    _, data = url.split(",", 1)
-                    return base64.b64decode(data)
-        else:
-            # Handle SDK content block objects
-            if getattr(part, "type", None) == "image_url":
-                url = part.image_url.url
-                if url.startswith("data:"):
-                    _, data = url.split(",", 1)
-                    return base64.b64decode(data)
-    raise ValueError("No image found in model response")
+    # Images are returned in message.images (OpenRouter-specific field)
+    message = response.choices[0].message
+    images = (message.model_extra or {}).get("images") or []
+    for img in images:
+        url = img.get("image_url", {}).get("url", "")
+        if url.startswith("data:"):
+            _, data = url.split(",", 1)
+            return base64.b64decode(data)
+    raise ValueError(f"No image found in model response. images={images!r} content={message.content!r}")
 
 
 async def generate_image(prompt: str, images: list[bytes]) -> bytes:
