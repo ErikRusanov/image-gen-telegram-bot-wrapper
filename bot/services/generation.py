@@ -57,12 +57,20 @@ def format_usage(response: ChatCompletion) -> str | None:
     return " · ".join(parts)
 
 
-async def generate_image(prompt: str, images: list[bytes], model: str | None = None) -> tuple[bytes, str | None]:
+async def generate_image(
+    prompt: str,
+    images: list[bytes],
+    model: str | None = None,
+    aspect_ratio: str | None = None,
+) -> tuple[bytes, str | None]:
     model = model or MODEL_SIMPLE
-    logger.info("Generating image | prompt=%r images=%d model=%s", prompt[:80], len(images), model)
+    logger.info(
+        "Generating image | prompt=%r images=%d model=%s aspect_ratio=%s",
+        prompt[:80], len(images), model, aspect_ratio,
+    )
     client = create_client()
     content = build_content(prompt, images)
-    response = await call_model(client, content, model=model)
+    response = await call_model(client, content, model=model, aspect_ratio=aspect_ratio)
     img = extract_image(response)
     usage_text = format_usage(response)
     logger.info("Image generated | size=%d bytes usage=%s", len(img), usage_text)

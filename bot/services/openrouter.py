@@ -23,8 +23,17 @@ def create_client() -> AsyncOpenAI:
 SYSTEM_PROMPT = "You are an image generation assistant. Always respond with a generated image."
 
 
-async def call_model(client: AsyncOpenAI, content: list, model: str = MODEL_SIMPLE) -> ChatCompletion:
-    logger.debug("Calling model %s | parts=%d", model, len(content))
+async def call_model(
+    client: AsyncOpenAI,
+    content: list,
+    model: str = MODEL_SIMPLE,
+    aspect_ratio: str | None = None,
+) -> ChatCompletion:
+    image_config: dict = {"image_size": "2K"}
+    if aspect_ratio:
+        image_config["aspect_ratio"] = aspect_ratio
+
+    logger.debug("Calling model %s | parts=%d aspect_ratio=%s", model, len(content), aspect_ratio)
     response = await client.chat.completions.create(
         model=model,
         messages=[
@@ -33,7 +42,7 @@ async def call_model(client: AsyncOpenAI, content: list, model: str = MODEL_SIMP
         ],
         extra_body={
             "modalities": ["image", "text"],
-            "image_config": {"image_size": "2K"},
+            "image_config": image_config,
         },
     )
     logger.debug("Model response received | finish_reason=%s", response.choices[0].finish_reason)
