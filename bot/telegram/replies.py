@@ -10,9 +10,11 @@ async def send_thinking(message: Message) -> Message:
     return await message.answer("🎨 Generating your image, please wait...")
 
 
-async def send_image(message: Message, img_bytes: bytes, usage_text: str | None = None) -> None:
+async def send_image(
+    message: Message, img_bytes: bytes, usage_text: str | None = None, caption: str | None = None
+) -> None:
     photo = BufferedInputFile(img_bytes, filename="generated.png")
-    caption = message.text or message.caption or ""
+    caption = caption if caption is not None else (message.text or message.caption or "")
     if usage_text:
         caption = f"{caption}\n\n{usage_text}".strip()
     await message.answer_photo(photo=photo, caption=caption)

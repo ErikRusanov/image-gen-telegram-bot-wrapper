@@ -3,7 +3,7 @@ import logging
 
 from openai.types.chat import ChatCompletion
 
-from bot.services.openrouter import call_model, create_client
+from bot.services.openrouter import MODEL_SIMPLE, call_model, create_client
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +57,12 @@ def format_usage(response: ChatCompletion) -> str | None:
     return " · ".join(parts)
 
 
-async def generate_image(prompt: str, images: list[bytes]) -> tuple[bytes, str | None]:
-    logger.info("Generating image | prompt=%r images=%d", prompt[:80], len(images))
+async def generate_image(prompt: str, images: list[bytes], model: str | None = None) -> tuple[bytes, str | None]:
+    model = model or MODEL_SIMPLE
+    logger.info("Generating image | prompt=%r images=%d model=%s", prompt[:80], len(images), model)
     client = create_client()
     content = build_content(prompt, images)
-    response = await call_model(client, content)
+    response = await call_model(client, content, model=model)
     img = extract_image(response)
     usage_text = format_usage(response)
     logger.info("Image generated | size=%d bytes usage=%s", len(img), usage_text)
