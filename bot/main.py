@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import logging.config
 
@@ -53,7 +54,7 @@ async def app(scope, receive, send) -> None:
                 if not event.get("more_body"):
                     break
             update = Update.model_validate_json(body)
-            await dp.feed_update(bot, update)
+            asyncio.create_task(dp.feed_update(bot, update))
             await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b"ok"})
         else:

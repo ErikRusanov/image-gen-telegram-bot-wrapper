@@ -35,7 +35,13 @@ def extract_image(response: ChatCompletion) -> bytes:
         if url.startswith("data:"):
             _, data = url.split(",", 1)
             return base64.b64decode(data)
-    raise ValueError(f"No image found in model response. images={images!r} content={message.content!r}")
+    raise ValueError(
+        f"No image found in model response. "
+        f"finish_reason={response.choices[0].finish_reason!r} "
+        f"images={images!r} "
+        f"content={message.content!r} "
+        f"model_extra={message.model_extra!r}"
+    )
 
 
 def format_usage(response: ChatCompletion) -> str | None:
