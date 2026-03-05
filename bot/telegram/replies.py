@@ -5,19 +5,27 @@ from aiogram.types import BufferedInputFile, Message
 
 logger = logging.getLogger(__name__)
 
+_MIME_TO_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+
 
 async def send_thinking(message: Message) -> Message:
     return await message.answer("🎨 Generating your image, please wait...")
 
 
 async def send_image(
-    message: Message, img_bytes: bytes, usage_text: str | None = None, caption: str | None = None
+    message: Message,
+    img_bytes: bytes,
+    mime_type: str,
+    usage_text: str | None = None,
+    caption: str | None = None,
 ) -> None:
-    photo = BufferedInputFile(img_bytes, filename="generated.png")
+    ext = _MIME_TO_EXT.get(mime_type, "jpg")
+    file = BufferedInputFile(img_bytes, filename=f"generated.{ext}")
     caption = caption if caption is not None else (message.text or message.caption or "")
     if usage_text:
         caption = f"{caption}\n\n{usage_text}".strip()
-    await message.answer_photo(photo=photo, caption=caption)
+    # Send as document to skip Telegram's photo recompression pipeline
+    await message.answer_document(document=file, caption=caption)
 
 
 async def send_error(message: Message) -> None:

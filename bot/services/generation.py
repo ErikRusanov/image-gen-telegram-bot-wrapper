@@ -26,15 +26,16 @@ def build_content(prompt: str, images: list[bytes]) -> list[dict]:
     return parts
 
 
-def extract_image(response: ChatCompletion) -> bytes:
-    # Images are returned in message.images (OpenRouter-specific field)
+def extract_image(response: ChatCompletion) -> tuple[bytes, str]:
+    """Returns (image_bytes, mime_type)."""
     message = response.choices[0].message
     images = (message.model_extra or {}).get("images") or []
     for img in images:
         url = img.get("image_url", {}).get("url", "")
         if url.startswith("data:"):
-            _, data = url.split(",", 1)
-            return base64.b64decode(data)
+            meta, data = url.split(",", 1)
+            mime_type = meta.split(":")[1].split(";")[0]  # e.g. "image/jpeg"
+            return base64.b64decode(data), mime_type
     raise ValueError(
         f"No image found in model response. "
         f"finish_reason={response.choices[0].finish_reason!r} "
@@ -62,7 +63,7 @@ async def generate_image(
     images: list[bytes],
     model: str | None = None,
     aspect_ratio: str | None = None,
-) -> tuple[bytes, str | None]:
+) -> tuple[bytes, str, str | None]:
     model = model or MODEL_SIMPLE
     logger.info(
         "Generating image | prompt=%r images=%d model=%s aspect_ratio=%s",
@@ -71,7 +72,7 @@ async def generate_image(
     client = create_client()
     content = build_content(prompt, images)
     response = await call_model(client, content, model=model, aspect_ratio=aspect_ratio)
-    img = extract_image(response)
+    img, mime_type = extract_image(response)
     usage_text = format_usage(response)
-    logger.info("Image generated | size=%d bytes usage=%s", len(img), usage_text)
-    return img, usage_text
+    logger.info("Image generated | size=%d bytes mime=%s usage=%s", len(img), mime_type, usage_text)
+    return img, mime_type, usage_text

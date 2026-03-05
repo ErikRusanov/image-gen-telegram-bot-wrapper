@@ -1,6 +1,7 @@
+import asyncio
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from aiogram import Bot, F, Router
 from aiogram.types import CallbackQuery, Message
@@ -16,7 +17,7 @@ router = Router()
 @dataclass
 class PendingState:
     prompt: str
-    photos: list[bytes] = field(default_factory=list)
+    photos_task: asyncio.Task[list[bytes]]
     model_id: str | None = None
 
 
@@ -26,10 +27,12 @@ _pending: dict[str, PendingState] = {}
 @router.message()
 async def handle_message(message: Message, bot: Bot) -> None:
     prompt = message.text or message.caption or ""
-    photos = await media.download_photos(message, bot)
+
+    # Start downloading photos in the background — runs while the user picks model & format
+    photos_task = asyncio.create_task(media.download_photos(message, bot))
 
     token = uuid.uuid4().hex
-    _pending[token] = PendingState(prompt=prompt, photos=photos)
+    _pending[token] = PendingState(prompt=prompt, photos_task=photos_task)
 
     await message.answer("Choose model:", reply_markup=keyboards.model_selection(token))
 
@@ -60,14 +63,16 @@ async def handle_format_choice(callback: CallbackQuery, bot: Bot) -> None:
 
     aspect_ratio = keyboards.FORMAT_OPTIONS[format_key].aspect_ratio
     short_prompt = state.prompt[:200] if state.prompt else "(image)"
+
     await callback.message.edit_text(f"Generating for: {short_prompt}")
     await callback.answer()
 
     try:
-        img_bytes, usage_text = await generation.generate_image(
-            state.prompt, state.photos, model=state.model_id, aspect_ratio=aspect_ratio
+        photos = await state.photos_task
+        img_bytes, mime_type, usage_text = await generation.generate_image(
+            state.prompt, photos, model=state.model_id, aspect_ratio=aspect_ratio
         )
-        await replies.send_image(callback.message, img_bytes, usage_text, caption=state.prompt)
+        await replies.send_image(callback.message, img_bytes, mime_type, usage_text, caption=state.prompt)
     except Exception:
         logger.exception("Failed to generate image")
         await callback.message.answer("Something went wrong. Please try again.")
