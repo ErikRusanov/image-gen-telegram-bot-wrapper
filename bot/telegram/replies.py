@@ -24,6 +24,8 @@ async def send_image(
     caption = caption if caption is not None else (message.text or message.caption or "")
     if usage_text:
         caption = f"{caption}\n\n{usage_text}".strip()
+    if len(caption) > 1024:
+        caption = caption[:1021] + "..."
     # Send as document to skip Telegram's photo recompression pipeline
     await message.answer_document(document=file, caption=caption)
 
